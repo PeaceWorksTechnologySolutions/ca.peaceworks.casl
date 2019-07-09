@@ -2,6 +2,12 @@
 
 Provides some basic fields and functionality to assist with compliance for Canadian Anti-Spam Legislation. 
 
+These fields are for all contacts and track consent for communicating with them. Contacts that don't have consent (or where it's expired) will automatically have the "no bulk email" flag set. This extension was developed by PeaceWorks Technology Solutions.
+
+This extension will NOT un-set the no bulk email flag once it's set! You need to do this yourself, if appropriate.
+
+**This extension will also not populate the consent fields for you. You need to provide your own process or automation to populate them as appropriate (for example to auto-fill them when a form is filled out).**
+
 This extension was developed by PeaceWorks Technology Solutions. The extension is licensed under [AGPL-3.0](LICENSE.txt).
 
 ## Requirements
