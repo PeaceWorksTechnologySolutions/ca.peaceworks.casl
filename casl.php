@@ -170,26 +170,20 @@ function casl_civicrm_navigationMenu(&$menu) {
 } // */
 
 function _casl_get_casl_group_id() {
-    $result = civicrm_api3('CustomGroup', 'get', [
-      'sequential' => 1,
-      'name' => 'casl',
-    ]);
+    $result = civicrm_api3('CustomGroup', 'get', ['name' => 'casl']);
+    if ($result['count'] != 1) return FALSE;
     return $result['id'];
 }
 
 function _casl_get_consent_type_id() {
-    $result = civicrm_api3('CustomField', 'get', [
-      'sequential' => 1,
-      'name' => "consent_type",
-    ]);
+    $result = civicrm_api3('CustomField', 'get', ['name' => "consent_type"]);
+    if ($result['count'] != 1) return FALSE;
     return 'custom_' . $result['id'];
 }
 
 function _casl_get_consent_date_id() {
-    $result = civicrm_api3('CustomField', 'get', [
-      'sequential' => 1,
-      'name' => "consent_date",
-    ]);
+    $result = civicrm_api3('CustomField', 'get', ['name' => "consent_date"]);
+    if ($result['count'] != 1) return FALSE;
     return 'custom_' . $result['id'];
 }
 
@@ -208,16 +202,22 @@ function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag) {
         'do_not_email' => $do_not_email_flag
    );
    $result = civicrm_api3('contact', 'create', $params);
+   // TODO: create an activity on this.
 }
 
 /**
-When a contact's custom fields are updated, uses CASL fields to determine the "Do Not Email" flag
-**/
-function casl_civicrm_custom($op,$groupid,$entityid,&$params) {
-
+ * When a contact's custom fields are updated, uses CASL fields to determine the "Do Not Email" flag
+ */
+function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
     $consent_group_id = _casl_get_casl_group_id();
-    $consent_type_id = _casl_get_consent_type_id();
-    $consent_date_id = _casl_get_consent_date_id();
+    $consent_type_id  = _casl_get_consent_type_id();
+    $consent_date_id  = _casl_get_consent_date_id();
+
+    if (!$consent_group_id || !$consent_type_id || !$consent_date_id) {
+        $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
+        CRM_Core_Session::setStatus($message, 'CASL Error', 'alert', ['expires': 0]);
+        return;
+    }
 
     if (($groupid==$consent_group_id) and ($op=='create' || $op=='edit')) {
         civicrm_initialize();
@@ -226,37 +226,34 @@ function casl_civicrm_custom($op,$groupid,$entityid,&$params) {
             'return' => "contact_type,". $consent_type_id .",". $consent_date_id,
         ));
         $consent_type = $result['values'][$entityid][$consent_type_id];
-        $expired = FALSE;
 
-        //Test if implicit consent has expired after 2 years
+        // Test if implicit consent has expired after 2 years
         if ($consent_type == "Implicit") {
             $consent_date = $result['values'][$entityid][$consent_date_id];
-            $expired = _casl_test_expiration($consent_date);
-        }
-     
-        if (($consent_type == "Implicit" && !$expired) || $consent_type == "Explicit" || $consent_type == "Exempt"){
-            //Two scenarios where CASL allows for mailing lists: implicit consent given within 2 years, or explicit consent anytime
-            //FIXME: leave flag as is!
-            //_casl_set_do_not_email_flag($entityid,FALSE);
-        }
-        else {
-            //Any other scenario, including no consent given and implicit more than 2 years old
-            _casl_set_do_not_email_flag($entityid,TRUE);
+            if (_casl_test_expiration($consent_date)) {
+                _casl_set_do_not_email_flag($entityid, TRUE);
+            }
+        } else if ($consent_type != "Explicit" && $consent_type != "Exempt") {
+            // Set do-not-email flag in any scenario other than the protected cases
+            _casl_set_do_not_email_flag($entityid, TRUE);
         }
     }
 }
 
 /**
-Searches all contacts on cron to find any instances of implicit consent having expired
-Turns on the Do Not Email flag if consent has expired
-FIXME: check civicrm cron hook documentation
-**/
+ * Searches all contacts on cron to find any instances of implicit consent having expired
+ * Turns on the Do Not Email flag if consent has expired
+ */
 function casl_civicrm_cron() {
-    civicrm_initialize();
-
     $consent_group_id = _casl_get_casl_group_id();
-    $consent_type_id = _casl_get_consent_type_id();
-    $consent_date_id = _casl_get_consent_date_id();
+    $consent_type_id  = _casl_get_consent_type_id();
+    $consent_date_id  = _casl_get_consent_date_id();
+
+    if (!$consent_group_id || !$consent_type_id || !$consent_date_id) {
+        // FIXME
+        Civi::log()->error('During a cron run there was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
+        return;
+    }
 
     $result = civicrm_api3('Contact', 'get', array(
         $consent_type_id => "Implicit",
@@ -269,8 +266,29 @@ function casl_civicrm_cron() {
         $consent_date = $contact[$consent_date_id];
         $contact_ID = $contact['id']; 
         if (_casl_test_expiration($consent_date)) {
-            _casl_set_do_not_email_flag($contact_ID,TRUE);
+            _casl_set_do_not_email_flag($contact_ID, TRUE);
         }
+    }
+}
+
+/**
+ * Implementation of hook_civicrm_check
+ * Checks if custom fields exist
+ */
+function casl_civicrm_check(&$messages) {
+    $consent_group_id = _casl_get_casl_group_id();
+    $consent_type_id  = _casl_get_consent_type_id();
+    $consent_date_id  = _casl_get_consent_date_id();
+
+    if (!$consent_group_id || !$consent_type_id || !$consent_date_id) {
+        $m = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent. To resolve this, ensure that the CASL custom group and fields still exist, are enabled, and have the correct names.');
+        $messages[] = new CRM_Utils_Check_Message(
+          'casl_missing',
+          $m,
+          ts('CASL Fields Missing'),
+          \Psr\Log\LogLevel::CRITICAL,
+          'fa-envelope'
+        );
     }
 }
 
