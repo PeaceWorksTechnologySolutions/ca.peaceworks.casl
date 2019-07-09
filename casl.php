@@ -22,12 +22,104 @@ function casl_civicrm_xmlMenu(&$files) {
 }
 
 /**
+ * Helper function
+ * Checks and creates needed custom fields
+ */
+function _casl_create_fields() {
+    // Check and create custom group
+    $group_check = civicrm_api3('CustomGroup', 'get', ['name' => "casl"]);
+
+    if ($group_check['count'] == 0) {
+        //Create the custom group
+        $group_params = array(
+            'title' => 'CASL',
+            'name' => 'casl',
+            'extends' => 'Contact',
+            'help_pre' => ts("Custom fields enabled by the CiviCRM CASL module developed by PeaceWorks."),
+            'is_multiple' => 0,
+            'collapse_adv_display' => 1,
+            'is_reserved' => 1,
+            'style' => 'Inline',
+        );
+
+        $group_result = civicrm_api3('CustomGroup', 'create', $group_params);
+        $group_id = $group_result['id'];
+    }
+
+    // Check and create custom field for consent type
+    $type_check = civicrm_api3('CustomField', 'get', ['name' => "consent_type"]);
+
+    if ($type_check['count'] == 0) {
+        //Create the custom fields in that custom group
+        $type_params = array(
+            'custom_group_id' => $group_id,
+            'name' => 'consent_type',
+            'label' => 'Consent Type',
+            'html_type' => 'Select',
+            'data_type' => 'String',
+            'is_required' => 0,
+            'is_searchable' => 1,
+            'is_active' => 1,
+            'text_length' => 31,
+            'option_values' => array(
+                'None' => 'None',
+                'Implicit' => 'Implicit',
+                'Explicit' => 'Explicit',
+                'Exempt' => 'Exempt'
+            ),
+            'default_value' => 'None',
+        );
+        $type_result = civicrm_api3('CustomField', 'create', $type_params);
+    }
+
+    // Check and create custom field for consent date
+    $date_check = civicrm_api3('CustomField', 'get', ['name' => "consent_date"]);
+
+    if ($date_check['count'] == 0) {
+        $date_params = array(
+            'custom_group_id' => $group_id,
+            'name' => 'consent_date',
+            'label' => 'Date of Consent',
+            'data_type' => 'Date',
+            'html_type' => 'Select Date',
+            'is_required' => 0,
+            'is_searchable' => 1,
+            'is_active' => 1,
+            'start_date_years' => 10,
+            'end_date_years' => 1,
+            'date_format' => 'd M yy',
+            'is_search_range' => 1,
+        );
+        $date_result = civicrm_api3('CustomField', 'create', $date_params);
+    }
+
+    // Check and create custom field for consent method
+    $method_check = civicrm_api3('CustomField', 'get', ['name' => "consent_method"]);
+
+    if ($method_check['count'] == 0) {
+        $method_params = array(
+            'custom_group_id' => $group_id,
+            'name' => 'consent_method',
+            'label' => 'Method of Consent',
+            'html_type' => 'Text',
+            'data_type' => 'String',
+            'is_required' => 0,
+            'is_searchable' => 1,
+            'is_active' => 1,
+            'text_length' => 510,
+        );
+        $method_result = civicrm_api3('CustomField', 'create', $method_params);
+    }
+}
+
+/**
  * Implements hook_civicrm_install().
  *
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_install
  */
 function casl_civicrm_install() {
   _casl_civix_civicrm_install();
+  _casl_create_fields();
 }
 
 /**
@@ -55,6 +147,7 @@ function casl_civicrm_uninstall() {
  */
 function casl_civicrm_enable() {
   _casl_civix_civicrm_enable();
+  _casl_create_fields();
 }
 
 /**
@@ -169,24 +262,36 @@ function casl_civicrm_navigationMenu(&$menu) {
   _casl_civix_navigationMenu($menu);
 } // */
 
+/**
+ * Helper function to look up API id
+ */
 function _casl_get_casl_group_id() {
     $result = civicrm_api3('CustomGroup', 'get', ['name' => 'casl']);
     if ($result['count'] != 1) return FALSE;
     return $result['id'];
 }
 
+/**
+ * Helper function to look up API id
+ */
 function _casl_get_consent_type_id() {
     $result = civicrm_api3('CustomField', 'get', ['name' => "consent_type"]);
     if ($result['count'] != 1) return FALSE;
     return 'custom_' . $result['id'];
 }
 
+/**
+ * Helper function to look up API id
+ */
 function _casl_get_consent_date_id() {
     $result = civicrm_api3('CustomField', 'get', ['name' => "consent_date"]);
     if ($result['count'] != 1) return FALSE;
     return 'custom_' . $result['id'];
 }
 
+/**
+ * Helper function to test consent date expiry
+ */
 function _casl_test_expiration($consent_date) {
     //Return expiration boolean based on whether the expiry time is before or after current time
     $consent_date = new DateTime($consent_date);
@@ -196,7 +301,10 @@ function _casl_test_expiration($consent_date) {
     return FALSE;
 }
 
-function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag) {
+/**
+ * Helper function to set contact's do-not-email flag
+ */
+function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag=TRUE) {
    $params = array (
        'id' => $contact_ID,
        'do_not_email' => $do_not_email_flag
@@ -215,6 +323,7 @@ function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag) {
 }
 
 /**
+ * Implements hook_civicrm_custom
  * When a contact's custom fields are updated, uses CASL fields to determine the "Do Not Email" flag
  */
 function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
@@ -229,7 +338,6 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
     }
 
     if (($groupid==$consent_group_id) and ($op=='create' || $op=='edit')) {
-        civicrm_initialize();
         $result = civicrm_api3('Contact', 'get', array(
             'contact_id' => $entityid,
             'return' => "contact_type,". $consent_type_id .",". $consent_date_id,
@@ -240,16 +348,17 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
         if ($consent_type == "Implicit") {
             $consent_date = $result['values'][$entityid][$consent_date_id];
             if (_casl_test_expiration($consent_date)) {
-                _casl_set_do_not_email_flag($entityid, TRUE);
+                _casl_set_do_not_email_flag($entityid);
             }
         } else if ($consent_type != "Explicit" && $consent_type != "Exempt") {
             // Set do-not-email flag in any scenario other than the protected cases
-            _casl_set_do_not_email_flag($entityid, TRUE);
+            _casl_set_do_not_email_flag($entityid);
         }
     }
 }
 
 /**
+ * Implements hook_civicrm_cron
  * Searches all contacts on cron to find any instances of implicit consent having expired
  * Turns on the Do Not Email flag if consent has expired
  */
@@ -275,13 +384,13 @@ function casl_civicrm_cron() {
         $consent_date = $contact[$consent_date_id];
         $contact_ID = $contact['id']; 
         if (_casl_test_expiration($consent_date)) {
-            _casl_set_do_not_email_flag($contact_ID, TRUE);
+            _casl_set_do_not_email_flag($contact_ID);
         }
     }
 }
 
 /**
- * Implementation of hook_civicrm_check
+ * Implements hook_civicrm_check
  * Checks if custom fields exist
  */
 function casl_civicrm_check(&$messages) {
