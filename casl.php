@@ -198,11 +198,20 @@ function _casl_test_expiration($consent_date) {
 
 function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag) {
    $params = array (
-        'id' => $contact_ID,
-        'do_not_email' => $do_not_email_flag
+       'id' => $contact_ID,
+       'do_not_email' => $do_not_email_flag
    );
-   $result = civicrm_api3('contact', 'create', $params);
-   // TODO: create an activity on this.
+   $result = civicrm_api3('Contact', 'create', $params);
+
+   // Log on the contact as an activity
+   $params = array (
+       'source_contact_id' => $contact_ID,
+       'activity_date_time' => new DateTime(),
+       'subject' => ts('Do-not-email set by CASL'),
+       'details' => ts('The CASL Support extension has automatially set the "do-not-email" flag on this contact.'),
+       'status_id' => 'Completed',
+   );
+   $result = civicrm_api3('Activity', 'create', $params);
 }
 
 /**
