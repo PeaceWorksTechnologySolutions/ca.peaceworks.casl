@@ -35,7 +35,7 @@ function _casl_create_fields() {
             'title' => 'CASL',
             'name' => 'casl',
             'extends' => 'Contact',
-            'help_pre' => ts("Custom fields enabled by the CiviCRM CASL module developed by PeaceWorks."),
+            'help_pre' => ts("Fields to manage CASL consent"),
             'is_multiple' => 0,
             'collapse_adv_display' => 1,
             'is_reserved' => 1,
@@ -109,6 +109,21 @@ function _casl_create_fields() {
             'text_length' => 510,
         );
         $method_result = civicrm_api3('CustomField', 'create', $method_params);
+    }
+
+    // Check and create custom field for consent method
+    $method_check = civicrm_api3('OptionValue', 'get', ['name' => 'casl']);
+
+    if ($method_check['count'] == 0) {
+        $type_params = array(
+            'option_group_id' => 'activity_type',
+            'name' => 'casl',
+            'label' => 'CASL Event',
+            'icon' => 'fa-envelope',
+            'is_active' => 1,
+            'is_reserved' => 1,
+        );
+        $type_result = civicrm_api3('OptionValue', 'create', $type_params);
     }
 }
 
@@ -313,11 +328,13 @@ function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag=TRUE) {
 
    // Log on the contact as an activity
    $params = array (
-       'source_contact_id' => $contact_ID,
-       'activity_date_time' => new DateTime(),
+       'source_contact_id' => 1,
+       'activity_type_id' => 'casl',
+       'activity_date_time' => date('Y/m/d H:i'),
        'subject' => ts('Do-not-email set by CASL'),
        'details' => ts('The CASL Support extension has automatially set the "do-not-email" flag on this contact.'),
        'status_id' => 'Completed',
+       'api.ActivityContact.create' => ['contact_id' => $contact_ID, 'record_type_id' => 3],
    );
    $result = civicrm_api3('Activity', 'create', $params);
 }
@@ -333,7 +350,7 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
 
     if (!$consent_group_id || !$consent_type_id || !$consent_date_id) {
         $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
-        CRM_Core_Session::setStatus($message, 'CASL Error', 'alert', ['expires': 0]);
+        CRM_Core_Session::setStatus($message, 'CASL Error', 'alert', ['expires'=>0]);
         return;
     }
 
@@ -368,7 +385,7 @@ function casl_civicrm_cron() {
     $consent_date_id  = _casl_get_consent_date_id();
 
     if (!$consent_group_id || !$consent_type_id || !$consent_date_id) {
-        // FIXME
+        // FIXME: test this functionality
         Civi::log()->error('During a cron run there was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
         return;
     }
@@ -399,7 +416,8 @@ function casl_civicrm_check(&$messages) {
     $consent_date_id  = _casl_get_consent_date_id();
 
     if (!$consent_group_id || !$consent_type_id || !$consent_date_id) {
-        $m = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent. To resolve this, ensure that the CASL custom group and fields still exist, are enabled, and have the correct names.');
+        $m = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent. To resolve this, ensure that the CASL custom group and fields still exist, are enabled, and have the correct names. The following query on your CiviCRM database should return 3 results named "consent_type", "consent_date", and "consent_method".');
+        $m .= '<br/><pre>select cf.name,cf.label from civicrm_custom_field cf left join civicrm_custom_group cg on cg.id=cf.custom_group_id where cg.name=\'casl\'</pre>';
         $messages[] = new CRM_Utils_Check_Message(
           'casl_missing',
           $m,
