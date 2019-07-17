@@ -271,7 +271,7 @@ function casl_civicrm_navigationMenu(&$menu) {
   _casl_civix_insert_navigation_menu($menu, 'Administer/Communications', array(
     'label' => E::ts('CASL Settings'),
     'name' => 'casl_support_settings',
-    'url' => 'civicrm/admin/casl',
+    'url' => 'civicrm/admin/casl?reset=1',
     'permission' => 'administer CiviCRM',
     'operator' => 'OR',
     'separator' => 0,
@@ -351,12 +351,12 @@ function _casl_check_contact_has_consent($contact_id) {
 }
 
 /**
- * Helper function to set contact's do-not-email flag
+ * Helper function to set contact's no-bulk-email flag
  */
-function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag=TRUE) {
+function _casl_set_no_bulk_email_flag($contact_ID, $value=TRUE) {
    $params = array (
        'id' => $contact_ID,
-       'do_not_email' => $do_not_email_flag
+       'is_opt_out' => $value
    );
    $result = civicrm_api3('Contact', 'create', $params);
 
@@ -365,8 +365,8 @@ function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag=TRUE) {
        'source_contact_id' => 1,
        'activity_type_id' => 'casl',
        'activity_date_time' => date('Y/m/d H:i'),
-       'subject' => ts('Do-not-email set by CASL'),
-       'details' => ts('The CASL Support extension has automatially set the "do-not-email" flag on this contact.'),
+       'subject' => ts('No-bulk-email set by CASL'),
+       'details' => ts('The CASL Support extension has automatially set the "no-bulk-email" flag on this contact.'),
        'status_id' => 'Completed',
        'api.ActivityContact.create' => ['contact_id' => $contact_ID, 'record_type_id' => 3],
    );
@@ -375,7 +375,7 @@ function _casl_set_do_not_email_flag($contact_ID, $do_not_email_flag=TRUE) {
 
 /**
  * Implements hook_civicrm_custom
- * When a contact's custom fields are updated, uses CASL fields to determine the "Do Not Email" flag
+ * When a contact's custom fields are updated, uses CASL fields to determine the no-bulk-email flag
  */
 function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
     $consent_group_id = _casl_get_casl_group_id();
@@ -388,7 +388,7 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
 
     if (($groupid==$consent_group_id) and ($op=='create' || $op=='edit')) {
         if (!_casl_check_contact_has_consent($entityid)) {
-            _casl_set_do_not_email_flag($entityid);
+            _casl_set_no_bulk_email_flag($entityid);
         }
     }
 }
@@ -396,7 +396,7 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
 /**
  * Implements hook_civicrm_cron
  * Searches all contacts on cron to find any instances of implicit consent having expired
- * Turns on the Do Not Email flag if consent has expired
+ * Turns on the no-bulk-email flag if consent has expired
  */
 function casl_civicrm_cron() {
     $consent_type_id  = _casl_get_consent_type_id();
@@ -410,7 +410,7 @@ function casl_civicrm_cron() {
 
     $result = civicrm_api3('Contact', 'get', array(
         $consent_type_id => "Implicit",
-        'do_not_email' => 0,
+        'is_opt_out' => 0,
         'options' => array('limit' => 0),
         'return' => "contact_type,". $consent_type_id .",". $consent_date_id,
     ));
@@ -419,7 +419,7 @@ function casl_civicrm_cron() {
         $consent_date = $contact[$consent_date_id];
         $contact_ID = $contact['id']; 
         if (_casl_test_expiration($consent_date)) {
-            _casl_set_do_not_email_flag($contact_ID);
+            _casl_set_no_bulk_email_flag($contact_ID);
         }
     }
 }
@@ -453,7 +453,7 @@ function casl_civicrm_check(&$messages) {
 function casl_civicrm_pageRun(&$page) {
     if ($page->getVar('_name') == 'CRM_Contact_Page_View_Summary') {
         if (!_casl_check_contact_has_consent($page->getVar('_contactId'))) {
-            $message = ts('This contact does not have CASL consent for emails. Typically the do-not-email flag for them would have already been set. If so, they will not receive any of your bulk mailings in CiviMail.');
+            $message = ts('This contact does not have CASL consent for emails. Typically the no-bulk-email flag for them would have already been set. If so, they will not receive any of your bulk mailings in CiviMail.');
             CRM_Core_Session::setStatus($message, 'CASL Consent Absent');
         }
     }

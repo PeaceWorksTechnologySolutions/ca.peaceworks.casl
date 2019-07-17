@@ -2,7 +2,7 @@
 <extension key="ca.peaceworks.casl" type="module">
   <file>casl</file>
   <name>CASL Support</name>
-  <description>Provides some basic fields and functionality to assist with compliance for Canadian Anti-Spam Legislation. These fields are for all contacts and track consent for communicating with them. Contacts that don't have consent (or where it's expired) will automatically have the "no bulk email" flag set. This extension was developed by PeaceWorks Technology Solutions.</description>
+  <description>Provides some basic fields and functionality to assist with compliance for Canadian Anti-Spam Legislation. These fields are for all contacts and track consent for communicating with them. Contacts that don't have consent (or where it's expired) will automatically have the no-bulk-email flag set. This extension was developed by PeaceWorks Technology Solutions.</description>
   <license>AGPL-3.0</license>
   <maintainer>
     <author>PeaceWorks Technology Solutions</author>
