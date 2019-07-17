@@ -50,7 +50,6 @@ function _casl_create_fields() {
     $type_check = civicrm_api3('CustomField', 'get', ['name' => "consent_type"]);
 
     if ($type_check['count'] == 0) {
-        //Create the custom fields in that custom group
         $type_params = array(
             'custom_group_id' => $group_id,
             'name' => 'consent_type',
@@ -62,7 +61,6 @@ function _casl_create_fields() {
             'is_active' => 1,
             'text_length' => 31,
             'option_values' => array(
-                'None' => 'None',
                 'Implicit' => 'Implicit',
                 'Explicit' => 'Explicit',
                 'Exempt' => 'Exempt'
