@@ -351,26 +351,50 @@ function _casl_check_contact_has_consent($contact_id) {
 }
 
 /**
+ * Helper function to set contact's latest consent date
+ */
+function _casl_set_consent_date($contact_id, $cdate) {
+    $consent_date_id = _casl_get_consent_date_id();
+
+    // First check if new date is later than existing record
+    $result = civicrm_api3('Contact', 'get', ['contact_id' => $contact_id, 'return' => $consent_date_id]);
+    if (new DateTime($result['values'][$contact_id][$consent_date_id]) >= new DateTime($cdate)) {
+        return;
+    }
+    
+    // Set date
+    $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_date_id => $cdate]);
+  
+    // Log on the contact as an activity
+    $params = array (
+        'source_contact_id' => 1,
+        'activity_type_id' => 'casl',
+        'activity_date_time' => date('Y/m/d H:i'),
+        'subject' => ts('Consent date set by CASL'),
+        'details' => ts('The CASL Support extension has automatially set the consent date on this contact to '. $cdate .'.'),
+        'status_id' => 'Completed',
+        'api.ActivityContact.create' => ['contact_id' => $contact_id, 'record_type_id' => 3],
+    );
+    $result = civicrm_api3('Activity', 'create', $params);
+}
+
+/**
  * Helper function to set contact's no-bulk-email flag
  */
-function _casl_set_no_bulk_email_flag($contact_ID, $value=TRUE) {
-   $params = array (
-       'id' => $contact_ID,
-       'is_opt_out' => $value
-   );
-   $result = civicrm_api3('Contact', 'create', $params);
-
-   // Log on the contact as an activity
-   $params = array (
-       'source_contact_id' => 1,
-       'activity_type_id' => 'casl',
-       'activity_date_time' => date('Y/m/d H:i'),
-       'subject' => ts('No-bulk-email set by CASL'),
-       'details' => ts('The CASL Support extension has automatially set the "no-bulk-email" flag on this contact.'),
-       'status_id' => 'Completed',
-       'api.ActivityContact.create' => ['contact_id' => $contact_ID, 'record_type_id' => 3],
-   );
-   $result = civicrm_api3('Activity', 'create', $params);
+function _casl_set_no_bulk_email_flag($contact_id, $value=TRUE) {
+    $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, 'is_opt_out' => $value]);
+  
+    // Log on the contact as an activity
+    $params = array (
+        'source_contact_id' => 1,
+        'activity_type_id' => 'casl',
+        'activity_date_time' => date('Y/m/d H:i'),
+        'subject' => ts('No-bulk-email set by CASL'),
+        'details' => ts('The CASL Support extension has automatially set the "no-bulk-email" flag on this contact.'),
+        'status_id' => 'Completed',
+        'api.ActivityContact.create' => ['contact_id' => $contact_id, 'record_type_id' => 3],
+    );
+    $result = civicrm_api3('Activity', 'create', $params);
 }
 
 /**
@@ -417,9 +441,9 @@ function casl_civicrm_cron() {
 
     foreach ($result['values'] as $contact) {
         $consent_date = $contact[$consent_date_id];
-        $contact_ID = $contact['id']; 
+        $contact_id = $contact['id']; 
         if (_casl_test_expiration($consent_date)) {
-            _casl_set_no_bulk_email_flag($contact_ID);
+            _casl_set_no_bulk_email_flag($contact_id);
         }
     }
 }
@@ -455,6 +479,35 @@ function casl_civicrm_pageRun(&$page) {
         if (!_casl_check_contact_has_consent($page->getVar('_contactId'))) {
             $message = ts('This contact does not have CASL consent for emails. Typically the no-bulk-email flag for them would have already been set. If so, they will not receive any of your bulk mailings in CiviMail.');
             CRM_Core_Session::setStatus($message, 'CASL Consent Absent');
+        }
+    }
+}
+
+/**
+ * Implements hook_civicrm_post
+ */
+function casl_civicrm_post($op, $objectName, $objectId, &$objectRef) {
+    // If new event reg made, update consent date
+    if ($op=='create' && $objectName=='Participant') {
+        $autofill = CRM_Core_BAO_Setting::getItem('casl', 'autofill');
+        if (($autofill == 2) or ($autofill == 4)) {
+            $contact_id = $objectRef->contact_id;
+            $d = $objectRef->register_date;
+            $d = date('Y/m/d', strtotime($d));
+            _casl_set_consent_date($contact_id, $d);
+            // TODO: then check about unsetting no-bulk-email flag?
+        }
+    }
+
+    // If new contribution made, update consent date
+    if ($op=='create' && $objectName=='Contribution') {
+        $autofill = CRM_Core_BAO_Setting::getItem('casl', 'autofill');
+        if (($autofill == 3) or ($autofill == 4)) {
+            $contact_id = $objectRef->contact_id;
+            $d = $objectRef->receive_date;
+            $d = date('Y/m/d', strtotime($d));
+            _casl_set_consent_date($contact_id, $d);
+            // TODO: then check about unsetting no-bulk-email flag?
         }
     }
 }
