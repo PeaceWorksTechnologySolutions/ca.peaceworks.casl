@@ -144,6 +144,8 @@ function casl_civicrm_install() {
  */
 function casl_civicrm_postInstall() {
   _casl_civix_civicrm_postInstall();
+  CRM_Core_BAO_Setting::setItem(1, 'casl', 'grant_consent');
+  CRM_Core_BAO_Setting::setItem(1, 'casl', 'autofill');
 }
 
 /**
