@@ -266,18 +266,18 @@ function casl_civicrm_preProcess($formName, &$form) {
  * Implements hook_civicrm_navigationMenu().
  *
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_navigationMenu
- *
+ */
 function casl_civicrm_navigationMenu(&$menu) {
-  _casl_civix_insert_navigation_menu($menu, 'Mailings', array(
-    'label' => E::ts('New subliminal message'),
-    'name' => 'mailing_subliminal_message',
-    'url' => 'civicrm/mailing/subliminal',
-    'permission' => 'access CiviMail',
+  _casl_civix_insert_navigation_menu($menu, 'Administer/Communications', array(
+    'label' => E::ts('CASL Settings'),
+    'name' => 'casl_support_settings',
+    'url' => 'civicrm/admin/casl',
+    'permission' => 'administer CiviCRM',
     'operator' => 'OR',
     'separator' => 0,
   ));
   _casl_civix_navigationMenu($menu);
-} // */
+}
 
 /**
  * Helper function to look up API id
