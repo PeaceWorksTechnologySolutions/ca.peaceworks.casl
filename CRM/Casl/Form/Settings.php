@@ -15,8 +15,15 @@ class CRM_Casl_Form_Settings extends CRM_Core_Form {
     // add form elements
     $this->add(
       'select',
+      'ignore_null',
+      ts('Ignore unmarked contacts'),
+      $this->getIgnoreOptions(),
+      TRUE // required
+    );
+    $this->add(
+      'select',
       'grant_consent',
-      ts('Grant consent'),
+      ts('Allow flag clearing'),
       $this->getGrantOptions(),
       TRUE // required
     );
@@ -36,8 +43,9 @@ class CRM_Casl_Form_Settings extends CRM_Core_Form {
     ));
     
     $defaults = array(
+      'ignore_null'   => CRM_Core_BAO_Setting::getItem('casl', 'ignore_null'),
       'grant_consent' => CRM_Core_BAO_Setting::getItem('casl', 'grant_consent'),
-      'autofill' => CRM_Core_BAO_Setting::getItem('casl', 'autofill'),
+      'autofill'      => CRM_Core_BAO_Setting::getItem('casl', 'autofill'),
     );
     $this->setDefaults($defaults);
 
@@ -48,10 +56,20 @@ class CRM_Casl_Form_Settings extends CRM_Core_Form {
 
   public function postProcess() {
     $values = $this->exportValues();
+    CRM_Core_BAO_Setting::setItem($values['ignore_null'], 'casl', 'ignore_null');
     CRM_Core_BAO_Setting::setItem($values['grant_consent'], 'casl', 'grant_consent');
     CRM_Core_BAO_Setting::setItem($values['autofill'], 'casl', 'autofill');
     CRM_Core_Session::setStatus(E::ts('Your settings have been saved.'));
     parent::postProcess();
+  }
+
+  public function getIgnoreOptions() {
+    $options = array(
+      '' => E::ts('- select -'),
+      '1' => E::ts('Process ALL contacts for CASL consent'),
+      '2' => E::ts('Skip contacts who have "consent type" empty'),
+    );
+    return $options;
   }
 
   public function getGrantOptions() {

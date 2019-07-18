@@ -64,6 +64,7 @@ function _casl_create_fields() {
             'is_active' => 1,
             'text_length' => 31,
             'option_values' => array(
+                'None' => 'No consent',
                 'Implicit' => 'Implicit',
                 'Explicit' => 'Explicit',
                 'Exempt' => 'Exempt'
@@ -167,6 +168,7 @@ function casl_civicrm_install() {
  */
 function casl_civicrm_postInstall() {
   _casl_civix_civicrm_postInstall();
+  CRM_Core_BAO_Setting::setItem(1, 'casl', 'ignore_null');
   CRM_Core_BAO_Setting::setItem(1, 'casl', 'grant_consent');
   CRM_Core_BAO_Setting::setItem(1, 'casl', 'autofill');
 }
@@ -460,6 +462,8 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
         if (!_casl_check_contact_has_consent($entityid)) {
             _casl_set_no_bulk_email_flag($entityid);
         }
+
+        // TODO: unset flags when consented and NOT already_flagged
     }
 }
 
@@ -492,6 +496,8 @@ function casl_civicrm_cron() {
             _casl_set_no_bulk_email_flag($contact_id);
         }
     }
+
+    // TODO: unset flags when consented and NOT already_flagged
 }
 
 /**
