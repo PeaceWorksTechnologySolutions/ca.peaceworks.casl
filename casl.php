@@ -540,7 +540,7 @@ function casl_civicrm_check(&$messages) {
     $consent_type_id   = _casl_get_consent_type_id();
     $consent_date_id   = _casl_get_consent_date_id();
     $consent_method_id = _casl_get_consent_method_id();
-    $already_id        = _casl_get_flagges_already_id();
+    $already_id        = _casl_get_flagged_already_id();
 
     if (!$consent_group_id || !$consent_type_id || !$consent_date_id || !$consent_method_id || !$already_id) {
         $m = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent. To resolve this, ensure that the CASL custom group and fields still exist, are enabled, and have the correct names. The following query on your CiviCRM database should return 4 results named "consent_type", "consent_date", "consent_method", and "flagged_already".');
