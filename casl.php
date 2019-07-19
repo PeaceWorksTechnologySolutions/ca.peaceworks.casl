@@ -420,7 +420,7 @@ function _casl_set_consent_date($contact_id, $cdate, $notes=NULL) {
     }
   
     // Log on the contact as an activity
-    $details = ts('The CASL Support extension has automatially set the consent date on this contact to '. $cdate .'.');
+    $details = ts('The CASL Support extension has automatically set the consent date on this contact to '. $cdate .'.');
     if ($notes) {
         $details .= ' '. ts('Reason for this change') .': '. $notes;
     }
@@ -439,7 +439,7 @@ function _casl_set_no_bulk_email_flag($contact_id) {
         // Set flag
         $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, 'is_opt_out' => 1]);
         _casl_log_activity($contact_id, ts('No-bulk-email set by CASL'),
-            ts('The CASL Support extension has automatially set the "no-bulk-email" flag on this contact.'));
+            ts('The CASL Support extension has automatically set the "no-bulk-email" flag on this contact.'));
 
         // Unset flagged_already, since we're setting no-bulk-email
         $already_id = _casl_get_flagged_already_id();
@@ -475,7 +475,8 @@ function _casl_check_unset_no_bulk_email_flag($contact_id) {
     // Otherwise, we can clear the no-bulk-mail flag now
     $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, 'is_opt_out' => 0]);
     _casl_log_activity($contact_id, ts('No-bulk-email cleared by CASL'),
-        ts('The CASL Support extension has automatially cleard the "no-bulk-email" flag on this contact, since consent appears to be in place.'));
+        ts('The CASL Support extension has automatically cleard the "no-bulk-email" flag on this contact, since consent appears to be in place.'));
+
 }
 
 /**
@@ -483,13 +484,16 @@ function _casl_check_unset_no_bulk_email_flag($contact_id) {
  * When a contact's custom fields are updated, uses CASL fields to determine the no-bulk-email flag
  */
 function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
+
     $consent_group_id = _casl_get_casl_group_id();
+
 
     if (!$consent_group_id) {
         $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
         CRM_Core_Session::setStatus($message, 'CASL Error', 'alert', ['expires'=>0]);
         return true;
     }
+
 
     if (($groupid==$consent_group_id) and ($op=='create' || $op=='edit')) {
         if (!_casl_check_contact_has_consent($entityid, true)) {
