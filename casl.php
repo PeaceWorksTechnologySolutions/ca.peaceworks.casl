@@ -484,9 +484,7 @@ function _casl_check_unset_no_bulk_email_flag($contact_id) {
  * When a contact's custom fields are updated, uses CASL fields to determine the no-bulk-email flag
  */
 function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
-
     $consent_group_id = _casl_get_casl_group_id();
-
 
     if (!$consent_group_id) {
         $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
@@ -494,12 +492,24 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
         return true;
     }
 
-
     if (($groupid==$consent_group_id) and ($op=='create' || $op=='edit')) {
-        if (!_casl_check_contact_has_consent($entityid, true)) {
-            _casl_set_no_bulk_email_flag($entityid);
-        } else {
-            _casl_check_unset_no_bulk_email_flag($entityid);
+        // Only proceed for certain fields
+        $go = false;
+        $change_ids = [
+            substr(_casl_get_consent_type_id(), 7), 
+            substr(_casl_get_consent_date_id(), 7),
+        ];
+        foreach ($params as $p) {
+            if (in_array($p['custom_field_id'], $change_ids)) {
+                $go = true;
+            }
+        }
+        if ($go) {
+            if (!_casl_check_contact_has_consent($entityid, true)) {
+                _casl_set_no_bulk_email_flag($entityid);
+            } else {
+                _casl_check_unset_no_bulk_email_flag($entityid);
+            }
         }
     }
 }
@@ -623,7 +633,12 @@ function casl_civicrm_pre($op, $objectName, $id, &$params) {
             }
 
             $already_id = _casl_get_flagged_already_id();
-            $result = civicrm_api3('Contact', 'create', ['id' => $id, $already_id => 1]);
+            // To help proptect against infinite loop, only set if it's not set yet
+            $result = civicrm_api3('Contact', 'get', ['id'=>$id, 'return'=>$already_id]);
+            if ($result['values'][$id][$already_id] != 1) {
+                // To prevent infinite loop, only set if it's not set yet
+                $result = civicrm_api3('Contact', 'create', ['id'=>$id, $already_id=>1]);
+            }
         }
     }
 }
