@@ -69,7 +69,6 @@ function _casl_create_fields() {
                 'Explicit' => 'Explicit',
                 'Exempt' => 'Exempt'
             ),
-            'default_value' => 'None',
         );
         $type_result = civicrm_api3('CustomField', 'create', $type_params);
     }
@@ -363,15 +362,19 @@ function _casl_test_expiration($consent_date) {
 
 /**
  * Helper function to check consent for a contact
+ * Returns:
+ *  0 -- no consent
+ *  1 -- null consent value (and null is allowed)
+ *  2 -- consent
  */
-function _casl_check_contact_has_consent($contact_id, $ignore_null=false) {
+function _casl_check_contact_has_consent($contact_id) {
     $consent_type_id  = _casl_get_consent_type_id();
     $consent_date_id  = _casl_get_consent_date_id();
 
     if (!$consent_type_id || !$consent_date_id) {
         $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
         CRM_Core_Session::setStatus($message, 'CASL Error', 'alert', ['expires'=>0]);
-        return true;
+        return 2;
     }
 
     $result = civicrm_api3('Contact', 'get', array(
@@ -380,33 +383,35 @@ function _casl_check_contact_has_consent($contact_id, $ignore_null=false) {
     ));
     $consent_type = $result['values'][$contact_id][$consent_type_id];
 
-    $setting_ignore_null = CRM_Core_BAO_Setting::getItem('casl', 'ignore_null');
-    if (($ignore_null) and ($setting_ignore_null == 2) and ($consent_type == NULL)) {
-        // Consent field empty, and global setting (and local param) set to allow this
-        return true;
+    $ignore_null = CRM_Core_BAO_Setting::getItem('casl', 'ignore_null');
+    if (($ignore_null == 2) and ($consent_type == NULL)) {
+        // Consent field empty, and global setting set to allow this
+        return 1;
     } else if ($consent_type == "Implicit") {
         // Check that implicit consent isn't expired
         $consent_date = $result['values'][$contact_id][$consent_date_id];
         if (!_casl_test_expiration($consent_date)) {
-            return true;
+            return 2;
         }
     } else if ($consent_type == "Explicit") {
-        return true;
+        return 2;
     } else if ($consent_type == "Exempt") {
-        return true;
+        return 2;
     }
-    return false;
+    return 0;
 }
 
 /**
- * Helper function to set contact's latest consent date
+ * Helper function to set contact's latest consent date, and give implicit consent
  */
 function _casl_set_consent_date($contact_id, $cdate, $notes=NULL) {
+    $consent_type_id   = _casl_get_consent_type_id();
     $consent_date_id   = _casl_get_consent_date_id();
     $consent_method_id = _casl_get_consent_method_id();
 
     // First check if new date is later than existing record
-    $result = civicrm_api3('Contact', 'get', ['contact_id' => $contact_id, 'return' => $consent_date_id]);
+    $result = civicrm_api3('Contact', 'get', ['contact_id' => $contact_id, 'return' => $consent_type_id .','. $consent_date_id]);
+    $ct = $result['values'][$contact_id][$consent_type_id];
     if (!empty($result['values'][$contact_id][$consent_date_id]) and 
         (new DateTime($result['values'][$contact_id][$consent_date_id]) >= new DateTime($cdate))) {
         return;
@@ -419,6 +424,11 @@ function _casl_set_consent_date($contact_id, $cdate, $notes=NULL) {
         $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_method_id => $notes]);
     }
   
+    // If no consent yet, give implicit consent
+    if (($ct != 'Explicit') and ($ct != 'Exempt')) {
+        $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_type_id => 'Implicit']);
+    }
+
     // Log on the contact as an activity
     $details = ts('The CASL Support extension has automatically set the consent date on this contact to '. $cdate .'.');
     if ($notes) {
@@ -457,7 +467,7 @@ function _casl_check_unset_no_bulk_email_flag($contact_id) {
     }
 
     // Don't unset if don't currently have consent
-    if (!_casl_check_contact_has_consent($contact_id)) {
+    if (_casl_check_contact_has_consent($contact_id) != 2) {
         return;
     }
 
@@ -505,7 +515,7 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
             }
         }
         if ($go) {
-            if (!_casl_check_contact_has_consent($entityid, true)) {
+            if (_casl_check_contact_has_consent($entityid) == 0) {
                 _casl_set_no_bulk_email_flag($entityid);
             } else {
                 _casl_check_unset_no_bulk_email_flag($entityid);
@@ -575,9 +585,13 @@ function casl_civicrm_check(&$messages) {
  */
 function casl_civicrm_pageRun(&$page) {
     if ($page->getVar('_name') == 'CRM_Contact_Page_View_Summary') {
-        if (!_casl_check_contact_has_consent($page->getVar('_contactId'))) {
+        $c = _casl_check_contact_has_consent($page->getVar('_contactId'));
+        if ($c == 0) {
             $message = ts('This contact does not have CASL consent for emails (for example it might be missing or expired). Typically the no-bulk-email flag for them would have already been set (depending on some other conditions). If so, they will not receive any of your bulk mailings in CiviMail.');
             CRM_Core_Session::setStatus($message, 'CASL Consent Absent');
+        } else if ($c == 1) {
+            $message = ts('This contact does not have any CASL consent information filled in. The system is set to allow them to still receive bulk emails (unless you see that the no-bulk-email flag has otherwise been set). However it\'s much preferred to update their information in the CASL section below!');
+            CRM_Core_Session::setStatus($message, 'CASL Consent Missing');
         }
     }
 }
