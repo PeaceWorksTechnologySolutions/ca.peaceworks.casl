@@ -35,7 +35,7 @@ function _casl_create_fields() {
             'title' => 'CASL',
             'name' => 'casl',
             'extends' => 'Contact',
-            'help_pre' => ts('Fields to manage CASL consent.'),
+            'help_pre' => E::ts('Fields to manage CASL consent.'),
             'is_multiple' => 0,
             'collapse_adv_display' => 1,
             'is_reserved' => 1,
@@ -58,8 +58,8 @@ function _casl_create_fields() {
             'label' => 'Consent Type',
             'html_type' => 'Select',
             'data_type' => 'String',
-            'help_pre' => ts('Ideally this field should ALWAYS be filled out.'),
-            'help_post' => ts('"Exempt" should be used rarely. It\'s meant for contacts who don\'t need to give consent, such as staff.'),
+            'help_pre' => E::ts('Ideally this field should ALWAYS be filled out.'),
+            'help_post' => E::ts('"Exempt" should be used rarely. It\'s meant for contacts who don\'t need to give consent, such as staff.'),
             'weight' => 1,
             'is_required' => 0,
             'is_searchable' => 1,
@@ -85,7 +85,7 @@ function _casl_create_fields() {
             'label' => 'Date of Consent',
             'data_type' => 'Date',
             'html_type' => 'Select Date',
-            'help_post' => ts('The most recent date when consent has been provided.'),
+            'help_post' => E::ts('The most recent date when consent has been provided.'),
             'weight' => 2,
             'is_required' => 0,
             'is_searchable' => 1,
@@ -108,7 +108,7 @@ function _casl_create_fields() {
             'label' => 'Method of Consent',
             'html_type' => 'Text',
             'data_type' => 'String',
-            'help_post' => ts('Where the most recent consent was obtained from, such as a newsletter sign-up form.'),
+            'help_post' => E::ts('Where the most recent consent was obtained from, such as a newsletter sign-up form.'),
             'weight' => 3,
             'is_required' => 0,
             'is_searchable' => 1,
@@ -128,8 +128,8 @@ function _casl_create_fields() {
             'label' => 'Flagged Otherwise',
             'html_type' => 'Radio',
             'data_type' => 'Boolean',
-            'help_pre' => ts('Used for tracking data changes.'),
-            'help_post' => ts('This field is used to track if the no-bulk-email flag has been turned on for a different reason other than CASL (i.e. intentional opt-out). When that situation is detected the field is automatically set to "yes". This then limits some functionality the CASL calculations provide, to prevent accidentally turning off the no-bulk-email flag when someone has intentionally wanted it to be on.'),
+            'help_pre' => E::ts('Used for tracking data changes.'),
+            'help_post' => E::ts('This field is used to track if the no-bulk-email flag has been turned on for a different reason other than CASL (i.e. intentional opt-out). When that situation is detected the field is automatically set to "yes". This then limits some functionality the CASL calculations provide, to prevent accidentally turning off the no-bulk-email flag when someone has intentionally wanted it to be on.'),
             'weight' => 4,
             'is_required' => 0,
             'is_searchable' => 0,
@@ -378,8 +378,8 @@ function _casl_check_contact_has_consent($contact_id) {
     $consent_date_id  = _casl_get_consent_date_id();
 
     if (!$consent_type_id || !$consent_date_id) {
-        $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
-        CRM_Core_Session::setStatus($message, 'CASL Error', 'alert', ['expires'=>0]);
+        $message = E::ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
+        CRM_Core_Session::setStatus($message, E::ts('CASL Error'), 'alert', ['expires'=>0]);
         return 2;
     }
 
@@ -436,11 +436,11 @@ function _casl_set_consent_date($contact_id, $cdate, $notes=NULL) {
     }
 
     // Log on the contact as an activity
-    $details = ts('The CASL Support extension has automatically set the consent date on this contact to '. $cdate .'.');
+    $details = E::ts('The CASL Support extension has automatically set the consent date on this contact to %1.', [1 => $cdate]);
     if ($notes) {
-        $details .= ' '. ts('Reason for this change') .': '. $notes;
+        $details .= ' '. E::ts('Reason for this change: %1', [1 => $notes]);
     }
-    _casl_log_activity($contact_id, ts('Consent date set by CASL'), $details);
+    _casl_log_activity($contact_id, E::ts('Consent date set by CASL'), $details);
 }
 
 /**
@@ -454,8 +454,8 @@ function _casl_set_no_bulk_email_flag($contact_id) {
     if ($old['values'][$contact_id]['is_opt_out'] == '0') {
         // Set flag
         $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, 'is_opt_out' => 1]);
-        _casl_log_activity($contact_id, ts('No-bulk-email set by CASL'),
-            ts('The CASL Support extension has automatically set the "no-bulk-email" flag on this contact.'));
+        _casl_log_activity($contact_id, E::ts('No-bulk-email set by CASL'),
+            E::ts('The CASL Support extension has automatically set the "no-bulk-email" flag on this contact.'));
 
         // Unset flagged_already, since we're setting no-bulk-email
         $already_id = _casl_get_flagged_already_id();
@@ -490,8 +490,8 @@ function _casl_check_unset_no_bulk_email_flag($contact_id) {
 
     // Otherwise, we can clear the no-bulk-mail flag now
     $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, 'is_opt_out' => 0]);
-    _casl_log_activity($contact_id, ts('No-bulk-email cleared by CASL'),
-        ts('The CASL Support extension has automatically cleard the "no-bulk-email" flag on this contact, since consent appears to be in place.'));
+    _casl_log_activity($contact_id, E::ts('No-bulk-email cleared by CASL'),
+        E::ts('The CASL Support extension has automatically cleard the "no-bulk-email" flag on this contact, since consent appears to be in place.'));
 
 }
 
@@ -503,8 +503,8 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
     $consent_group_id = _casl_get_casl_group_id();
 
     if (!$consent_group_id) {
-        $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
-        CRM_Core_Session::setStatus($message, 'CASL Error', 'alert', ['expires'=>0]);
+        $message = E::ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
+        CRM_Core_Session::setStatus($message, E::ts('CASL Error'), 'alert', ['expires'=>0]);
         return true;
     }
 
@@ -573,12 +573,12 @@ function casl_civicrm_check(&$messages) {
     $already_id        = _casl_get_flagged_already_id();
 
     if (!$consent_group_id || !$consent_type_id || !$consent_date_id || !$consent_method_id || !$already_id) {
-        $m = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent. To resolve this, ensure that the CASL custom group and fields still exist, are enabled, and have the correct names. The following query on your CiviCRM database should return 4 results named "consent_type", "consent_date", "consent_method", and "flagged_already".');
+        $m = E::ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent. To resolve this, ensure that the CASL custom group and fields still exist, are enabled, and have the correct names. The following query on your CiviCRM database should return 4 results named "consent_type", "consent_date", "consent_method", and "flagged_already".');
         $m .= '<br/><pre>select cf.name,cf.label from civicrm_custom_field cf left join civicrm_custom_group cg on cg.id=cf.custom_group_id where cg.name=\'casl\'</pre>';
         $messages[] = new CRM_Utils_Check_Message(
           'casl_missing',
           $m,
-          ts('CASL Fields Missing'),
+          E::ts('CASL Fields Missing'),
           \Psr\Log\LogLevel::CRITICAL,
           'fa-envelope'
         );
@@ -593,11 +593,11 @@ function casl_civicrm_pageRun(&$page) {
     if ($page->getVar('_name') == 'CRM_Contact_Page_View_Summary') {
         $c = _casl_check_contact_has_consent($page->getVar('_contactId'));
         if ($c == 0) {
-            $message = ts('This contact does not have CASL consent for emails (for example it might be missing or expired). Typically the no-bulk-email flag for them would have already been set (depending on some other conditions). If so, they will not receive any of your bulk mailings in CiviMail.');
-            CRM_Core_Session::setStatus($message, 'CASL Consent Absent');
+            $message = E::ts('This contact does not have CASL consent for emails (for example it might be missing or expired). Typically the no-bulk-email flag for them would have already been set (depending on some other conditions). If so, they will not receive any of your bulk mailings in CiviMail.');
+            CRM_Core_Session::setStatus($message, E::ts('CASL Consent Absent'));
         } else if ($c == 1) {
-            $message = ts('This contact does not have any CASL consent information filled in. The system is set to allow them to still receive bulk emails (unless you see that the no-bulk-email flag has otherwise been set). However it\'s much preferred to update their information in the CASL section below!');
-            CRM_Core_Session::setStatus($message, 'CASL Consent Missing');
+            $message = E::ts('This contact does not have any CASL consent information filled in. The system is set to allow them to still receive bulk emails (unless you see that the no-bulk-email flag has otherwise been set). However it\'s much preferred to update their information in the CASL section below!');
+            CRM_Core_Session::setStatus($message, E::ts('CASL Consent Missing'));
         }
     }
 }
@@ -617,7 +617,7 @@ function casl_civicrm_post($op, $objectName, $objectId, &$objectRef) {
             $event = civicrm_api3('Event', 'get', ['id' => $objectRef->event_id]);
             $name = $event['values'][$objectRef->event_id]['title'];
             // Set fields
-            _casl_set_consent_date($contact_id, $d, ts('Registration in event') .': '. $name);
+            _casl_set_consent_date($contact_id, $d, E::ts('Registration in event: %1', [1 => $name]));
             // TODO: then check about unsetting no-bulk-email flag?
         }
     }
@@ -630,7 +630,9 @@ function casl_civicrm_post($op, $objectName, $objectId, &$objectRef) {
             $d = $objectRef->receive_date;
             $d = date('Y/m/d', strtotime($d));
             // Set fields
-            _casl_set_consent_date($contact_id, $d, ts('Contribution received for') .' $'. number_format($objectRef->total_amount, 2));
+            _casl_set_consent_date($contact_id, $d, E::ts('Contribution received for %1', [
+              1 => CRM_Utils_Money::format($objectRef->total_amount, $objectRef->currency),
+            ]));
             // TODO: then check about unsetting no-bulk-email flag?
         }
     }

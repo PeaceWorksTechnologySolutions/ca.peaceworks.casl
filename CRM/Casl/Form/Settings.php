@@ -10,27 +10,27 @@ use CRM_Casl_ExtensionUtil as E;
 class CRM_Casl_Form_Settings extends CRM_Core_Form {
   public function buildQuickForm() {
 
-    CRM_Utils_System::setTitle(ts('CASL Settings'));
+    CRM_Utils_System::setTitle(E::ts('CASL Settings'));
 
     // add form elements
     $this->add(
       'select',
       'ignore_null',
-      ts('Ignore unmarked contacts'),
+      E::ts('Ignore unmarked contacts'),
       $this->getIgnoreOptions(),
       TRUE // required
     );
     $this->add(
       'select',
       'grant_consent',
-      ts('Allow flag clearing'),
+      E::ts('Allow flag clearing'),
       $this->getGrantOptions(),
       TRUE // required
     );
     $this->add(
       'select',
       'autofill',
-      ts('Autofill CASL fields'),
+      E::ts('Autofill CASL fields'),
       $this->getAutofillOptions(),
       TRUE // required
     );
