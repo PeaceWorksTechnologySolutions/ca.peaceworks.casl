@@ -98,6 +98,30 @@ function _casl_create_fields() {
         $date_result = civicrm_api3('CustomField', 'create', $date_params);
     }
 
+    // Check and create custom field for consent date
+    $expiry_check = civicrm_api3('CustomField', 'get', ['name' => "expiry_date"]);
+
+    if ($expiry_check['count'] == 0) {
+        $expiry_params = array(
+        'custom_group_id' => $group_id,
+        'name' => 'expiry_date',
+        'label' => 'Date of Consent Expiry',
+        'data_type' => 'Date',
+        'html_type' => 'Select Date',
+        'help_post' => ts('When the implicit CASL consent expires, 2 years after the consent date.'),
+        'weight' => 2,
+        'is_viewable' => 1,
+        'is_required' => 0,
+        'is_searchable' => 1,
+        'is_active' => 1,
+        'start_date_years' => 10,
+        'end_date_years' => 1,
+        'date_format' => 'd M yy',
+        'is_search_range' => 1,
+        );
+        $expiry_result = civicrm_api3('CustomField', 'create', $expiry_params);
+    }
+
     // Check and create custom field for consent method
     $method_check = civicrm_api3('CustomField', 'get', ['name' => "consent_method"]);
 
@@ -119,9 +143,9 @@ function _casl_create_fields() {
     }
 
     // Check and create custom field for tracking if no-bulk-email was checked by another way
-    $method_check = civicrm_api3('CustomField', 'get', ['name' => 'flagged_already']);
+    $already_check = civicrm_api3('CustomField', 'get', ['name' => 'flagged_already']);
 
-    if ($method_check['count'] == 0) {
+    if ($already_check['count'] == 0) {
         $already_params = array(
             'custom_group_id' => $group_id,
             'name' => 'flagged_already',
@@ -141,10 +165,10 @@ function _casl_create_fields() {
     }
 
     // Check and create activity_type field for casl
-    $method_check = civicrm_api3('OptionValue', 'get', ['name' => 'casl']);
+    $option_check = civicrm_api3('OptionValue', 'get', ['name' => 'casl']);
 
-    if ($method_check['count'] == 0) {
-        $type_params = array(
+    if ($option_check['count'] == 0) {
+        $option_params = array(
             'option_group_id' => 'activity_type',
             'name' => 'casl',
             'label' => 'CASL Event',
@@ -152,7 +176,7 @@ function _casl_create_fields() {
             'is_active' => 1,
             'is_reserved' => 1,
         );
-        $type_result = civicrm_api3('OptionValue', 'create', $type_params);
+        $option_result = civicrm_api3('OptionValue', 'create', $option_params);
     }
 }
 
@@ -327,6 +351,11 @@ function _casl_get_consent_date_id() {
     if ($result['count'] != 1) return FALSE;
     return 'custom_' . $result['id'];
 }
+function _casl_get_expiry_date_id() {
+    $result = civicrm_api3('CustomField', 'get', ['name' => "expiry_date"]);
+    if ($result['count'] != 1) return FALSE;
+    return 'custom_' . $result['id'];
+}
 function _casl_get_consent_method_id() {
     $result = civicrm_api3('CustomField', 'get', ['name' => "consent_method"]);
     if ($result['count'] != 1) return FALSE;
@@ -357,10 +386,18 @@ function _casl_log_activity($contact_id, $subject, $details) {
 /**
  * Helper function to test consent date expiry
  */
-function _casl_test_expiration($consent_date) {
-    //Return expiration boolean based on whether the expiry time is before or after current time
+function _casl_test_expiration($consent_date,$contact_id) {
+    //update the expired date field
     $consent_date = new DateTime($consent_date);
-    if (date_modify($consent_date, '+2 years') < new DateTime()) {
+    $expiry_date = date_modify($consent_date, '+2 years')->format('Y/m/d');
+    $expiry_field = _casl_get_expiry_date_id();
+    $update_contact = civicrm_api3('Contact', 'create', [
+      'id' => $contact_id,
+      $expiry_field => $expiry_date,
+    ]);
+
+    //Return expiration boolean based on whether the expiry time is before or after current time
+    if ($expiry_date < new DateTime()) {
         return TRUE;
     }
     return FALSE;
@@ -396,7 +433,7 @@ function _casl_check_contact_has_consent($contact_id) {
     } else if ($consent_type == "Implicit") {
         // Check that implicit consent isn't expired
         $consent_date = $result['values'][$contact_id][$consent_date_id];
-        if (!_casl_test_expiration($consent_date)) {
+        if (!_casl_test_expiration($consent_date,$contact_id)) {
             return 2;
         }
     } else if ($consent_type == "Explicit") {
@@ -509,7 +546,7 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
     }
 
     if (($groupid==$consent_group_id) and ($op=='create' || $op=='edit')) {
-        // Only proceed for certain fields
+        // Only proceed if consent type or consent date were changed
         $go = false;
         $change_ids = [
             substr(_casl_get_consent_type_id(), 7), 
@@ -555,7 +592,7 @@ function casl_civicrm_cron() {
     foreach ($result['values'] as $contact) {
         $consent_date = $contact[$consent_date_id];
         $contact_id = $contact['id']; 
-        if (_casl_test_expiration($consent_date)) {
+        if (_casl_test_expiration($consent_date,$contact_id)) {
             _casl_set_no_bulk_email_flag($contact_id);
         }
     }
