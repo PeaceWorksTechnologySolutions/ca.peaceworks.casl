@@ -389,11 +389,11 @@ function _casl_log_activity($contact_id, $subject, $details) {
 function _casl_update_and_test_expiration($consent_date, $contact_id) {
     //update the expired date field
     $consent_date = new DateTime($consent_date);
-    $expiry_date = date_modify($consent_date, '+2 years')->format('Y/m/d');
+    $expiry_date = date_modify($consent_date, '+2 years');
     $expiry_field = _casl_get_expiry_date_id();
     $update_contact = civicrm_api3('Contact', 'create', [
       'id' => $contact_id,
-      $expiry_field => $expiry_date,
+      $expiry_field => $expiry_date->format('Y/m/d'),
     ]);
 
     //Return expiration boolean based on whether the expiry time is before or after current time
