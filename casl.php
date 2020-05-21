@@ -387,11 +387,10 @@ function _casl_log_activity($contact_id, $subject, $details) {
  * Helper function to update expiry_date and test consent date expiry
  */
 function _casl_update_and_test_expiration($consent_date, $contact_id) {
-    ///check that consent date is valid. If not, empty expiry date as well.
+    //Check that consent date is valid. If not, empty expiry date as well.
     if (empty($consent_date)) {
         $expiry_date = '';
-    }
-    else {
+    } else {
         //If consent date is valid, update the expired date field
         $consent_date = new DateTime($consent_date);
         $expiry_date = date_modify($consent_date, '+2 years')->format('Y/m/d');
@@ -544,6 +543,7 @@ function _casl_check_unset_no_bulk_email_flag($contact_id) {
  */
 function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
     $consent_group_id = _casl_get_casl_group_id();
+    $consent_date_id = _casl_get_consent_date_id();
 
     if (!$consent_group_id) {
         $message = ts('There was an error in looking up the CASL fields in your system. The CASL Support extension will not be able to check contacts for CASL consent.');
@@ -556,7 +556,7 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
         $go = false;
         $change_ids = [
             substr(_casl_get_consent_type_id(), 7), 
-            substr(_casl_get_consent_date_id(), 7),
+            substr($consent_date_id, 7),
         ];
         foreach ($params as $p) {
             if (in_array($p['custom_field_id'], $change_ids)) {
@@ -567,11 +567,11 @@ function casl_civicrm_custom($op, $groupid, $entityid, &$params) {
             //Get the consent date, to use in updating the expiry date
             $get_consent = civicrm_api3('Contact', 'get', [
                 'sequential' => 1,
-                'return' => _casl_get_consent_date_id(),
+                'return' => $consent_date_id,
                 'id' => $entityid,
             ]);
             if ($get_consent['count'] > 0) {
-                $consent_date = $get_consent['values'][0][_casl_get_consent_date_id()];
+                $consent_date = $get_consent['values'][0][$consent_date_id];
                 _casl_update_and_test_expiration($consent_date, $entityid);
             }
 
