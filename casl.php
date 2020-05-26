@@ -387,8 +387,20 @@ function _casl_log_activity($contact_id, $subject, $details) {
  * Helper function to update expiry_date and test consent date expiry
  */
 function _casl_update_and_test_expiration($consent_date, $contact_id) {
+    $check_type = civicrm_api3('Contact', 'get', [
+        'sequential' => 1,
+        'return' => _casl_get_consent_type_id(),
+        'id' => $contact_id,
+    ]);
+    $implicit = false;
+    if ($check_type['count'] > 0) {
+        if ($check_type['values'][0][_casl_get_consent_type_id()] == 'Implicit') { //any condition other than implicit consent will result in setting the expiry to blank
+            $implicit = true;
+        }
+    }
+
     //Check that consent date is valid. If not, empty expiry date as well.
-    if (empty($consent_date)) {
+    if (empty($consent_date) or !$implicit) {
         $expiry_date = null;
         $expiry_string = '';
     } else {
@@ -470,24 +482,19 @@ function _casl_set_consent_date($contact_id, $cdate, $notes=NULL) {
         return;
     }
     
-    // Set date
-    $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_date_id => $cdate]);
-    // Set method
-    if ($notes) {
-        $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_method_id => $notes]);
-    }
-  
-    // If no consent yet, give implicit consent
+    // If no consent yet, give implicit consent and set the method
     if (($ct != 'Explicit') and ($ct != 'Exempt')) {
-        $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_type_id => 'Implicit']);
+        $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_type_id => 'Implicit', $consent_date_id => $cdate]);
+        if ($notes) {
+            $result = civicrm_api3('Contact', 'create', ['id' => $contact_id, $consent_method_id => $notes]);
+        }
+        // Log on the contact as an activity
+        $details = ts('The CASL Support extension has automatically set the consent date on this contact to '. $cdate .'.');
+        if ($notes) {
+            $details .= ' '. ts('Reason for this change') .': '. $notes;
+        }
+        _casl_log_activity($contact_id, ts('Consent date set by CASL'), $details);
     }
-
-    // Log on the contact as an activity
-    $details = ts('The CASL Support extension has automatically set the consent date on this contact to '. $cdate .'.');
-    if ($notes) {
-        $details .= ' '. ts('Reason for this change') .': '. $notes;
-    }
-    _casl_log_activity($contact_id, ts('Consent date set by CASL'), $details);
 }
 
 /**
