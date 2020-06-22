@@ -16,6 +16,7 @@
 {/foreach}
 *}
 
+{crmScope extensionKey='ca.peaceworks.casl'}
   <div class="crm-section">
     <div class="label">{$form.ignore_null.label}</div>
     <div class="content">{$form.ignore_null.html}
@@ -40,6 +41,7 @@
     </div>
     <div class="clear"></div>
   </div>
+{/crmScope}
 
 {* FOOTER *}
 <div class="crm-submit-buttons">
