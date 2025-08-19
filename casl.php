@@ -13,15 +13,6 @@ function casl_civicrm_config(&$config) {
 }
 
 /**
- * Implements hook_civicrm_xmlMenu().
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_xmlMenu
- */
-function casl_civicrm_xmlMenu(&$files) {
-  _casl_civix_civicrm_xmlMenu($files);
-}
-
-/**
  * Helper function
  * Checks and creates needed custom fields
  */
@@ -196,19 +187,9 @@ function casl_civicrm_install() {
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_postInstall
  */
 function casl_civicrm_postInstall() {
-  _casl_civix_civicrm_postInstall();
   CRM_Core_BAO_Setting::setItem(1, 'casl', 'ignore_null');
   CRM_Core_BAO_Setting::setItem(1, 'casl', 'grant_consent');
   CRM_Core_BAO_Setting::setItem(1, 'casl', 'autofill');
-}
-
-/**
- * Implements hook_civicrm_uninstall().
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_uninstall
- */
-function casl_civicrm_uninstall() {
-  _casl_civix_civicrm_uninstall();
 }
 
 /**
@@ -221,90 +202,6 @@ function casl_civicrm_enable() {
   _casl_create_fields();
 }
 
-/**
- * Implements hook_civicrm_disable().
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_disable
- */
-function casl_civicrm_disable() {
-  _casl_civix_civicrm_disable();
-}
-
-/**
- * Implements hook_civicrm_upgrade().
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_upgrade
- */
-function casl_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
-  return _casl_civix_civicrm_upgrade($op, $queue);
-}
-
-/**
- * Implements hook_civicrm_managed().
- *
- * Generate a list of entities to create/deactivate/delete when this module
- * is installed, disabled, uninstalled.
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_managed
- */
-function casl_civicrm_managed(&$entities) {
-  _casl_civix_civicrm_managed($entities);
-}
-
-/**
- * Implements hook_civicrm_caseTypes().
- *
- * Generate a list of case-types.
- *
- * Note: This hook only runs in CiviCRM 4.4+.
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_caseTypes
- */
-function casl_civicrm_caseTypes(&$caseTypes) {
-  _casl_civix_civicrm_caseTypes($caseTypes);
-}
-
-/**
- * Implements hook_civicrm_angularModules().
- *
- * Generate a list of Angular modules.
- *
- * Note: This hook only runs in CiviCRM 4.5+. It may
- * use features only available in v4.6+.
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_angularModules
- */
-function casl_civicrm_angularModules(&$angularModules) {
-  _casl_civix_civicrm_angularModules($angularModules);
-}
-
-/**
- * Implements hook_civicrm_alterSettingsFolders().
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_alterSettingsFolders
- */
-function casl_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
-  _casl_civix_civicrm_alterSettingsFolders($metaDataFolders);
-}
-
-/**
- * Implements hook_civicrm_entityTypes().
- *
- * Declare entity types provided by this module.
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_entityTypes
- */
-function casl_civicrm_entityTypes(&$entityTypes) {
-  _casl_civix_civicrm_entityTypes($entityTypes);
-}
-
-/**
- * Implements hook_civicrm_thems().
- */
-function casl_civicrm_themes(&$themes) {
-  _casl_civix_civicrm_themes($themes);
-}
-
 // --- Functions below this ship commented out. Uncomment as required. ---
 
 /**
@@ -312,9 +209,8 @@ function casl_civicrm_themes(&$themes) {
  *
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_preProcess
  *
-function casl_civicrm_preProcess($formName, &$form) {
 
-} // */
+ // */
 
 /**
  * Implements hook_civicrm_navigationMenu().
@@ -730,4 +626,3 @@ function casl_civicrm_pre($op, $objectName, $id, &$params) {
         }
     }
 }
-
